@@ -8,6 +8,10 @@ if [ ! -d "debs" ];  then
     mkdir debs
 fi
 
+if [ ! -d "srcs" ];  then
+    mkdir srcs
+fi
+
 SOURCE="https://mirror.tuna.tsinghua.edu.cn/ubuntu/pool/main/g/glibc"
 # Use the source below if you feel slow, or change it on your own.
 # SOURCE="http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/"
@@ -55,6 +59,23 @@ download_single() {
   mkdir libs/$id/.debug
   ./extract debs/$dbg_name libs/$id/.debug
   echo "  -> Package saved to libs/$id/.debug"
+
+  # download source package
+  local glibc_ver=${id%%-*}
+  local src_name="glibc_${glibc_ver}.orig.tar.xz"
+  if [ ! -f "srcs/$src_name" ]; then
+    local url="$SOURCE/$src_name"
+    echo "  -> Location: $url"
+    echo "  -> Downloading libc source package"
+    wget "$url" 2>/dev/null -O srcs/$src_name || die "Failed to download package from $url"
+  fi
+  echo "  -> Extracting libc source package"
+  mkdir srcs/tmp
+  tar -xf srcs/$src_name -C srcs/tmp
+  cp srcs/tmp/* libs/$id/source -r
+  rm srcs/tmp -rd
+  # ./extract srcs/$src_name libs/$id/source
+  echo "  -> Package saved to libs/$id/source"
 }
 
 if [[ $# != 1 ]]; then
