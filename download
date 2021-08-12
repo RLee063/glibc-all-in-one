@@ -13,6 +13,7 @@ if [ ! -d "srcs" ];  then
 fi
 
 SOURCE="https://mirror.tuna.tsinghua.edu.cn/ubuntu/pool/main/g/glibc"
+# SOURCE="https://launchpad.net/ubuntu/+source/glibc/2.31-0ubuntu9.1/+build/19905528/+files"
 # Use the source below if you feel slow, or change it on your own.
 # SOURCE="http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/"
 
@@ -33,7 +34,9 @@ download_single() {
   local id=$1
   local deb_name=$LIBC_PREFIX$id.deb
   local dbg_name=$LIBC_DBG_PREFIX$id.deb
-  echo "Getting $id"
+  local glibc_ver=${id%%-*}
+  local src_name="glibc_${glibc_ver}.orig.tar.xz"
+  echo "========== Dowloading $id =========="
   if [ -d "libs/$id" ]; then
     die "  --> Downloaded before. Remove it to download again."
   fi
@@ -43,32 +46,39 @@ download_single() {
   echo "  -> Location: $url"
   echo "  -> Downloading libc binary package"
   wget "$url" 2>/dev/null -O debs/$deb_name || die "Failed to download package from $url"
-  echo "  -> Extracting libc binary package"
-
-  mkdir libs/$id
-  ./extract debs/$deb_name libs/$id
-  echo "  -> Package saved to libs/$id"
 
   # download debug info package
   local url="$SOURCE/$dbg_name"
   echo "  -> Location: $url"
   echo "  -> Downloading libc debug package"
   wget "$url" 2>/dev/null -O debs/$dbg_name || die "Failed to download package from $url"
-  echo "  -> Extracting libc debug package"
-
-  mkdir libs/$id/.debug
-  ./extract debs/$dbg_name libs/$id/.debug
-  echo "  -> Package saved to libs/$id/.debug"
 
   # download source package
-  local glibc_ver=${id%%-*}
-  local src_name="glibc_${glibc_ver}.orig.tar.xz"
   if [ ! -f "srcs/$src_name" ]; then
     local url="$SOURCE/$src_name"
     echo "  -> Location: $url"
     echo "  -> Downloading libc source package"
     wget "$url" 2>/dev/null -O srcs/$src_name || die "Failed to download package from $url"
   fi
+}
+
+extract_single() {
+  local id=$1
+  local deb_name=$LIBC_PREFIX$id.deb
+  local dbg_name=$LIBC_DBG_PREFIX$id.deb
+  local glibc_ver=${id%%-*}
+  local src_name="glibc_${glibc_ver}.orig.tar.xz"
+  echo "========== Extracting $id =========="
+  echo "  -> Extracting libc binary package"
+  mkdir libs/$id
+  ./extract debs/$deb_name libs/$id
+  echo "  -> Package saved to libs/$id"
+
+  echo "  -> Extracting libc debug package"
+  mkdir libs/$id/.debug
+  ./extract debs/$dbg_name libs/$id/.debug
+  echo "  -> Package saved to libs/$id/.debug"
+
   echo "  -> Extracting libc source package"
   mkdir srcs/tmp
   tar -xf srcs/$src_name -C srcs/tmp
@@ -82,3 +92,4 @@ if [[ $# != 1 ]]; then
   usage
 fi
 download_single "$1"
+extract_single "$1"
