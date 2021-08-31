@@ -13,93 +13,103 @@ if [ ! -d "srcs" ];  then
 fi
 
 # SOURCE="http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/"
-SOURCE="https://mirror.tuna.tsinghua.edu.cn/ubuntu/pool/main/g/glibc"
-SRC_SROUCE=$SOURCE
+# SOURCE="https://mirror.tuna.tsinghua.edu.cn/ubuntu/pool/main/g/glibc"
+# SRC_SOURCE=$SOURCE
 
-# SOURCE="https://launchpad.net/~ubuntu-security-proposed/+archive/ubuntu/ppa/+build/14236598/+files"
-# SRC_SOURCE="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glibc/2.26-0ubuntu2.1"
-# Use the source below if you feel slow, or change it on your own.
-
-LIBC_PREFIX="libc6_"
-LIBC_DBG_PREFIX="libc6-dbg_"
-GLIBC_SOURCE_PREFIX="glibc-source_"
-GLIBC_SOURCE_SUFFIX="_all"
+SOURCE="https://launchpad.net/ubuntu/+source/glibc/2.31-0ubuntu9.1/+build/19905528/+files"
+SRC_SOURCE="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glibc/2.31-0ubuntu9.1"
 
 die() {
+  rm -f debs/$deb_name
+  rm -f debs/$dbg_name
+  rm -f srcs/$dsc_name
+  rm -f srcs/$tar_name
+  rm -f srcs/$diff_name
+  rm -f libs/$id
   echo >&2 $1
   exit 1
 }
 
 usage() {
-  echo >&2 "Usage: $0 id"
+  echo >&2 "[?] Usage: $0 id"
   exit 2
 }
 
 download_single() {
-  local id=$1
-  local deb_name=$LIBC_PREFIX$id.deb
-  local dbg_name=$LIBC_DBG_PREFIX$id.deb
-  local glibc_ver=${id%%-*}
-  local src_name="glibc_${glibc_ver}.orig.tar.xz"
-  # local glibc_ver=${id%_*}
-  # local src_name=$GLIBC_SOURCE_PREFIX$glibc_ver$GLIBC_SOURCE_SUFFIX.deb
-  echo "========== Dowloading $id =========="
+  echo "==========***** Downloading $id *****=========="
   if [ -d "libs/$id" ]; then
-    die "  --> Downloaded before. Remove it to download again."
+    die "[-] Downloaded before. Remove it to download again." 
   fi
 
   # download binary package
+  echo "[=] Downloading binary"
   local url="$SOURCE/$deb_name"
-  echo "  -> Location: $url"
-  echo "  -> Downloading libc binary package"
+  echo "[+] Location: $url"
   if [ ! -f debs/$deb_name ]; then
-    wget "$url" 2>/dev/null -O debs/$deb_name || die "Failed to download package from $url"
+    wget "$url" 2>/dev/null -O debs/$deb_name || die "[-] Failed to download package from $url"
   fi
 
   # download debug info package
+  echo "[=] Downloading debug symbol"
   local url="$SOURCE/$dbg_name"
-  echo "  -> Location: $url"
-  echo "  -> Downloading libc debug package"
+  echo "[+] Location: $url"
   if [ ! -f debs/$dbg_name ]; then
-    wget "$url" 2>/dev/null -O debs/$dbg_name || die "Failed to download package from $url"
+    wget "$url" 2>/dev/null -O debs/$dbg_name || die "[-] Failed to download package from $url"
   fi
+
   # download source package
-  if [ ! -f "srcs/$src_name" ]; then
-    local url="$SRC_SOURCE/$src_name"
-    echo "  -> Location: $url"
-    echo "  -> Downloading libc source package"
-    wget "$url" 2>/dev/null -O srcs/$src_name || die "Failed to download package from $url"
+  echo "[=] Downloading source code" 
+  local url="$SRC_SOURCE/$dsc_name"
+  echo "[+] Location: $url"
+  if [ ! -f "srcs/$dsc_name" ]; then
+    wget "$url" 2>/dev/null -O srcs/$dsc_name || die "[-] Failed to download package from $url"
+  fi
+  local url="$SRC_SOURCE/$tar_name"
+  echo "[+] Location: $url"
+  if [ ! -f "srcs/$tar_name" ]; then
+    wget "$url" 2>/dev/null -O srcs/$tar_name || die "[-] Failed to download package from $url"
+  fi
+  local url="$SRC_SOURCE/$diff_name"
+  echo "[+] Location: $url"
+  if [ ! -f "srcs/$diff_name" ]; then
+    wget "$url" 2>/dev/null -O srcs/$diff_name || die "[-] Failed to download package from $url"
   fi
 }
 
 extract_single() {
-  local id=$1
-  local deb_name=$LIBC_PREFIX$id.deb
-  local dbg_name=$LIBC_DBG_PREFIX$id.deb
-  local glibc_ver=${id%%-*}
-  local src_name="glibc_${glibc_ver}.orig.tar.xz"
-  echo "========== Extracting $id =========="
-  echo "  -> Extracting libc binary package"
+  echo "==========***** Extracting $id *****=========="
+  echo "[+] Extracting libc binary package"
   mkdir libs/$id
   ./extract debs/$deb_name libs/$id
-  echo "  -> Package saved to libs/$id"
+  echo "[*] Package saved to libs/$id"
 
-  echo "  -> Extracting libc debug package"
+  echo "[+] Extracting libc debug package"
   mkdir libs/$id/.debug
   ./extract debs/$dbg_name libs/$id/.debug
-  echo "  -> Package saved to libs/$id/.debug"
+  echo "[*] Package saved to libs/$id/.debug"
 
-  echo "  -> Extracting libc source package"
-  mkdir srcs/tmp
-  tar -xf srcs/$src_name -C srcs/tmp
-  cp srcs/tmp/* libs/$id/source -r
-  rm srcs/tmp -rd
-  # ./extract srcs/$src_name libs/$id/source
-  echo "  -> Package saved to libs/$id/source"
+  echo "[+] Extracting libc source package"
+  cd srcs
+  dpkg-source -x $dsc_name
+  rm -r -f glibc-${glibc_ver}/debian
+  mv glibc-${glibc_ver} ../libs/$id/source
+
+  echo "[*] Package saved to libs/$id/source"
+  echo "==========***** Done with $id *****=========="
 }
 
 if [[ $# != 1 ]]; then
   usage
 fi
+
+id=$1
+deb_name=libc6_$id.deb
+dbg_name=libc6-dbg_$id.deb
+src_ver=${id%%_*}
+glibc_ver=${id%%-*}
+dsc_name=glibc_${src_ver}.dsc
+diff_name=glibc_${src_ver}.debian.tar.xz
+tar_name=glibc_${glibc_ver}.orig.tar.xz
+
 download_single "$1"
 extract_single "$1"
